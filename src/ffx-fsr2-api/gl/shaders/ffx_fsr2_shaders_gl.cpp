@@ -134,7 +134,7 @@ Fsr2ShaderBlobGL fsr2GetTcrAutogeneratePassPermutationBlobByIndex(uint32_t permu
     return POPULATE_SHADER_BLOB(g_ffx_fsr2_tcr_autogen_pass_PermutationInfo, tableIndex);
 }
 
-Fsr2ShaderBlobGL fsr2GetPermutationBlobByIndexVK(FfxFsr2Pass passId, uint32_t permutationOptions)
+Fsr2ShaderBlobGL fsr2GetPermutationBlobByIndexGL(FfxFsr2Pass passId, uint32_t permutationOptions)
 {
     switch (passId) {
 
