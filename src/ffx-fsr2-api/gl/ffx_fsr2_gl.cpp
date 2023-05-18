@@ -514,7 +514,7 @@ GLuint ffxGetGLImage(FfxFsr2Context* context, uint32_t resId)
 
   int32_t internalIndex = contextPrivate->uavResources[resId].internalIndex;
 
-  return (internalIndex == -1) ? 0 : backendContext->resources[internalIndex].textureAllMipsView;
+  return (internalIndex == -1) ? 0 : backendContext->resources[internalIndex].textureAllMipsView.id;
 }
 
 FfxErrorCode RegisterResourceGL(

@@ -108,7 +108,7 @@ add_dependencies(${FFX_SC_DEPENDENT_TARGET} shader_permutations_gl)
 
 add_subdirectory(external)
 
-target_link_libraries(ffx_fsr2_api_gl_${FSR2_PLATFORM_NAME} lib_glad)
+target_link_libraries(ffx_fsr2_api_gl_${FSR2_PLATFORM_NAME} ffx_lib_glad)
 
 source_group("source"  FILES ${GL})
 source_group("shaders" FILES ${SHADERS})
