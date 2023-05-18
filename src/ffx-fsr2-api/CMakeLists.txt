@@ -24,6 +24,7 @@ set(CMAKE_DEBUG_POSTFIX d)
 
 option (FFX_FSR2_API_DX12 "Build FSR 2.0 DX12 backend" ON)
 option (FFX_FSR2_API_VK "Build FSR 2.0 Vulkan backend" ON)
+option (FFX_FSR2_API_GL "Build FSR 2.0 OpenGL backend" ON)
 
 set(FSR2_AUTO_COMPILE_SHADERS ON CACHE BOOL "Compile shaders automatically as a prebuild step.")
 
@@ -104,6 +105,10 @@ endif()
 if(FFX_FSR2_API_VK)
     message("Will build FSR2 library: Vulkan backend")
     add_subdirectory(vk)
+endif()
+if(FFX_FSR2_API_GL)
+    message("Will build FSR2 library: OpenGL backend")
+    add_subdirectory(gl)
 endif()
 
 # api
