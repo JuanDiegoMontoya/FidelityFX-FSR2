@@ -24,7 +24,7 @@ if(NOT ${FFX_FSR2_API_GL})
 endif()
 
 set(FFX_SC_GL_BASE_ARGS
-    -compiler=glslang -e main --target-env opengl -S comp -Os -DFFX_GLSL=1)
+    -compiler=glslang -e main --target-env opengl --auto-map-bindings -Os -S comp -DFFX_GLSL=1)
 
 file(GLOB SHADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/../shaders/*.h"

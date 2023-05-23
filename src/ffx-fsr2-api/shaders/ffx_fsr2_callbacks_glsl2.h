@@ -232,65 +232,65 @@ FfxFloat32 ViewSpaceToMetersFactor()
 
 // UAV
 #if defined FSR2_BIND_UAV_RECONSTRUCTED_PREV_NEAREST_DEPTH
-	layout (binding = FSR2_BIND_UAV_RECONSTRUCTED_PREV_NEAREST_DEPTH, r32ui) uniform uimage2D   rw_reconstructed_previous_nearest_depth;
+	layout (r32ui) uniform uimage2D   rw_reconstructed_previous_nearest_depth;
 #endif
 #if defined FSR2_BIND_UAV_DILATED_MOTION_VECTORS
-	layout (binding = FSR2_BIND_UAV_DILATED_MOTION_VECTORS, rg16f)           writeonly uniform image2D  rw_dilated_motion_vectors;
+	layout (rg16f)           writeonly uniform image2D  rw_dilated_motion_vectors;
 #endif
 #if defined FSR2_BIND_UAV_DILATED_DEPTH
-	layout (binding = FSR2_BIND_UAV_DILATED_DEPTH, r16f)                     writeonly uniform image2D  rw_dilatedDepth;
+	layout (r16f)                     writeonly uniform image2D  rw_dilatedDepth;
 #endif
 #if defined FSR2_BIND_UAV_INTERNAL_UPSCALED
-	layout (binding = FSR2_BIND_UAV_INTERNAL_UPSCALED, rgba16f)              writeonly uniform image2D  rw_internal_upscaled_color;
+	layout (rgba16f)              writeonly uniform image2D  rw_internal_upscaled_color;
 #endif
 #if defined FSR2_BIND_UAV_LOCK_STATUS
-	layout (binding = FSR2_BIND_UAV_LOCK_STATUS, rg16f)                      uniform image2D    rw_lock_status;
+	layout (rg16f)                      uniform image2D    rw_lock_status;
 #endif
 #if defined(FSR2_BIND_UAV_LOCK_INPUT_LUMA)
-	layout(binding = FSR2_BIND_UAV_LOCK_INPUT_LUMA, r16f)                    writeonly uniform image2D    rw_lock_input_luma;
+	layout(r16f)                    writeonly uniform image2D    rw_lock_input_luma;
 #endif
 #if defined FSR2_BIND_UAV_NEW_LOCKS
-	layout(binding = FSR2_BIND_UAV_NEW_LOCKS, r8)				 		      uniform image2D    rw_new_locks;
+	layout(r8)				 		      uniform image2D    rw_new_locks;
 #endif
 #if defined FSR2_BIND_UAV_PREPARED_INPUT_COLOR
-	layout (binding = FSR2_BIND_UAV_PREPARED_INPUT_COLOR, rgba16)            writeonly uniform image2D  rw_prepared_input_color;
+	layout (rgba16)            writeonly uniform image2D  rw_prepared_input_color;
 #endif
 #if defined FSR2_BIND_UAV_LUMA_HISTORY
-	layout (binding = FSR2_BIND_UAV_LUMA_HISTORY, rgba8)                     uniform image2D  rw_luma_history;
+	layout (rgba8)                     uniform image2D  rw_luma_history;
 #endif
 #if defined FSR2_BIND_UAV_UPSCALED_OUTPUT
-	layout (binding = FSR2_BIND_UAV_UPSCALED_OUTPUT /* app controlled format */) writeonly uniform image2D  rw_upscaled_output;
+	writeonly uniform image2D  rw_upscaled_output;
 #endif
 #if defined FSR2_BIND_UAV_EXPOSURE_MIP_LUMA_CHANGE
-	layout (binding = FSR2_BIND_UAV_EXPOSURE_MIP_LUMA_CHANGE, r16f)              coherent uniform image2D  rw_img_mip_shading_change;
+	layout (r16f)              coherent uniform image2D  rw_img_mip_shading_change;
 #endif
 #if defined FSR2_BIND_UAV_EXPOSURE_MIP_5
-	layout (binding = FSR2_BIND_UAV_EXPOSURE_MIP_5, r16f)                        coherent uniform image2D  rw_img_mip_5;
+	layout (r16f)                        coherent uniform image2D  rw_img_mip_5;
 #endif
 #if defined FSR2_BIND_UAV_DILATED_REACTIVE_MASKS
-	layout (binding = FSR2_BIND_UAV_DILATED_REACTIVE_MASKS, rg8)                 writeonly uniform image2D	 rw_dilated_reactive_masks;
+	layout (rg8)                 writeonly uniform image2D	 rw_dilated_reactive_masks;
 #endif 
 #if defined FSR2_BIND_UAV_EXPOSURE 
-	layout (binding = FSR2_BIND_UAV_EXPOSURE, rg32f)                         uniform image2D    rw_exposure;
+	layout (rg32f)                         uniform image2D    rw_exposure;
 #endif
 #if defined FSR2_BIND_UAV_AUTO_EXPOSURE
-	layout(binding = FSR2_BIND_UAV_AUTO_EXPOSURE, rg32f)                         uniform image2D    rw_auto_exposure;
+	layout(rg32f)                         uniform image2D    rw_auto_exposure;
 #endif
 #if defined FSR2_BIND_UAV_SPD_GLOBAL_ATOMIC 
-	layout (binding = FSR2_BIND_UAV_SPD_GLOBAL_ATOMIC, r32ui)       coherent uniform uimage2D   rw_spd_global_atomic;
+	layout (r32ui)       coherent uniform uimage2D   rw_spd_global_atomic;
 #endif
 
 #if defined FSR2_BIND_UAV_AUTOREACTIVE
-	layout(binding = FSR2_BIND_UAV_AUTOREACTIVE, r32f)                       uniform image2D   	    rw_output_autoreactive;
+	layout(r32f)                       uniform image2D   	    rw_output_autoreactive;
 #endif
 #if defined FSR2_BIND_UAV_AUTOCOMPOSITION
-	layout(binding = FSR2_BIND_UAV_AUTOCOMPOSITION, r32f)                    uniform image2D   	    rw_output_autocomposition;
+	layout(r32f)                    uniform image2D   	    rw_output_autocomposition;
 #endif
 #if defined FSR2_BIND_UAV_PREV_PRE_ALPHA_COLOR
-	layout(binding = FSR2_BIND_UAV_PREV_PRE_ALPHA_COLOR, r11f_g11f_b10f)     uniform image2D   	    rw_output_prev_color_pre_alpha;
+	layout(r11f_g11f_b10f)     uniform image2D   	    rw_output_prev_color_pre_alpha;
 #endif
 #if defined FSR2_BIND_UAV_PREV_POST_ALPHA_COLOR
-	layout(binding = FSR2_BIND_UAV_PREV_POST_ALPHA_COLOR, r11f_g11f_b10f)    uniform image2D   	    rw_output_prev_color_post_alpha;
+	layout(r11f_g11f_b10f)    uniform image2D   	    rw_output_prev_color_post_alpha;
 #endif
 
 #if defined(FSR2_BIND_SRV_SCENE_LUMINANCE_MIPS)
