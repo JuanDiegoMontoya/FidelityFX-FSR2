@@ -662,6 +662,7 @@ static FfxErrorCode fsr2Release(FfxFsr2Context_Private* context)
 
 static void setupDeviceDepthToViewSpaceDepthParams(FfxFsr2Context_Private* context, const FfxFsr2DispatchDescription* params)
 {
+    FFX_ASSERT_MESSAGE(params->deviceDepthNegativeOneToOne == false, "OpenGL depth convention not yet supported");
     const bool bInverted = (context->contextDescription.flags & FFX_FSR2_ENABLE_DEPTH_INVERTED) == FFX_FSR2_ENABLE_DEPTH_INVERTED;
     const bool bInfinite = (context->contextDescription.flags & FFX_FSR2_ENABLE_DEPTH_INFINITE) == FFX_FSR2_ENABLE_DEPTH_INFINITE;
 

@@ -137,6 +137,7 @@ typedef struct FfxFsr2DispatchDescription {
     float                       cameraFar;                          ///< The distance to the far plane of the camera. This is used only used in case of non infinite depth.
     float                       cameraFovAngleVertical;             ///< The camera angle field of view in the vertical direction (expressed in radians).
     float                       viewSpaceToMetersFactor;            ///< The scale factor to convert view space units to meters
+    bool                        deviceDepthNegativeOneToOne;        ///< Use OpenGL's default device Z range of [-1, 1].
 
     // EXPERIMENTAL reactive mask generation parameters
     bool                        enableAutoReactive;                 ///< A boolean value to indicate internal reactive autogeneration should be used
