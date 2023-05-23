@@ -43,24 +43,27 @@ FfxErrorCode DestroyPipelineGL(FfxFsr2Interface* backendInterface, FfxPipelineSt
 FfxErrorCode ScheduleGpuJobGL(FfxFsr2Interface* backendInterface, const FfxGpuJobDescription* job);
 FfxErrorCode ExecuteGpuJobsGL(FfxFsr2Interface* backendInterface, FfxCommandList commandList);
 
-#define FSR2_MAX_QUEUED_FRAMES              ( 4)
-#define FSR2_MAX_RESOURCE_COUNT             (64)
-#define FSR2_MAX_STAGING_RESOURCE_COUNT     ( 8)
-#define FSR2_MAX_BARRIERS                   (16)
-#define FSR2_MAX_GPU_JOBS                   (32)
-#define FSR2_MAX_IMAGE_COPY_MIPS            (32)
-#define FSR2_MAX_SAMPLERS                   ( 2)
-#define FSR2_MAX_UNIFORM_BUFFERS            ( 4)
-#define FSR2_MAX_IMAGE_VIEWS                (32)
-#define FSR2_MAX_BUFFERED_DESCRIPTORS       (FFX_FSR2_PASS_COUNT * FSR2_MAX_QUEUED_FRAMES)
-#define FSR2_UBO_RING_BUFFER_SIZE           (FSR2_MAX_BUFFERED_DESCRIPTORS * FSR2_MAX_UNIFORM_BUFFERS)
-#define FSR2_UBO_MEMORY_BLOCK_SIZE          (FSR2_UBO_RING_BUFFER_SIZE * 256)
-
-namespace GL
+namespace
 {
-  struct Texture { GLuint id; };
-  struct Buffer { GLuint id; };
-  struct Sampler { GLuint id; };
+  constexpr uint32_t FSR2_MAX_QUEUED_FRAMES          = 4;
+  constexpr uint32_t FSR2_MAX_RESOURCE_COUNT         = 64;
+  constexpr uint32_t FSR2_MAX_STAGING_RESOURCE_COUNT = 8;
+  constexpr uint32_t FSR2_MAX_BARRIERS               = 16;
+  constexpr uint32_t FSR2_MAX_GPU_JOBS               = 32;
+  constexpr uint32_t FSR2_MAX_IMAGE_COPY_MIPS        = 32;
+  constexpr uint32_t FSR2_MAX_SAMPLERS               = 2;
+  constexpr uint32_t FSR2_MAX_UNIFORM_BUFFERS        = 4;
+  constexpr uint32_t FSR2_MAX_IMAGE_VIEWS            = 32;
+  constexpr uint32_t FSR2_MAX_BUFFERED_DESCRIPTORS   = FFX_FSR2_PASS_COUNT * FSR2_MAX_QUEUED_FRAMES;
+  constexpr uint32_t FSR2_UBO_RING_BUFFER_SIZE       = FSR2_MAX_BUFFERED_DESCRIPTORS * FSR2_MAX_UNIFORM_BUFFERS;
+  constexpr uint32_t FSR2_UBO_MEMORY_BLOCK_SIZE      = FSR2_UBO_RING_BUFFER_SIZE * 256;
+
+  namespace GL
+  {
+    struct Texture { GLuint id{}; };
+    struct Buffer { GLuint id{}; };
+    struct Sampler { GLuint id{}; };
+  }
 }
 
 struct BackendContext_GL {
@@ -75,7 +78,6 @@ struct BackendContext_GL {
 #endif
     FfxResourceDescription  resourceDescription;
     FfxResourceStates       state;
-    //ResourceVariant resource;
 
     GL::Buffer buffer = {};
 
@@ -1153,7 +1155,7 @@ FfxErrorCode ScheduleGpuJobGL(FfxFsr2Interface* backendInterface, const FfxGpuJo
   }
 
   backendContext->gpuJobCount++;
-
+  
   return FFX_OK;
 }
 
@@ -1206,7 +1208,11 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_GL* backendContext, FfxG
     // not ideal to call every time
     const auto location = backendContext->glFunctionTable.glGetUniformLocation(program, name);
 
-    FFX_ASSERT(location != -1);
+    // skip binding unused images
+    if (location == -1)
+    {
+      continue;
+    }
 
     // also not ideal to call every time
     backendContext->glFunctionTable.glProgramUniform1i(program, location, currBinding);
