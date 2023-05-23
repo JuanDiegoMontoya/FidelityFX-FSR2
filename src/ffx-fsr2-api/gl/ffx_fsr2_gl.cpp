@@ -22,7 +22,7 @@
 #include "../ffx_fsr2.h"
 #include "ffx_fsr2_gl.h"
 #include "glad/gl.h"
-#include "shaders/ffx_fsr2_shaders_gl.h"  // include all the precompiled VK shaders for the FSR2 passes
+#include "shaders/ffx_fsr2_shaders_gl.h"  // include all the precompiled SPIR-V (GL) shaders for the FSR2 passes
 #include "../ffx_fsr2_private.h"
 #include <cstring>
 #include <cmath>
@@ -124,6 +124,8 @@ struct BackendContext_GL {
     PFNGLUNMAPNAMEDBUFFERPROC glUnmapNamedBuffer = nullptr;
     PFNGLMEMORYBARRIERPROC glMemoryBarrier = nullptr;
     PFNGLUSEPROGRAMPROC glUseProgram = nullptr;
+    PFNGLPROGRAMUNIFORM1IPROC glProgramUniform1i = nullptr;
+    PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = nullptr;
     PFNGLBINDTEXTUREUNITPROC glBindTextureUnit = nullptr;
     PFNGLBINDSAMPLERPROC glBindSampler = nullptr;
     PFNGLBINDBUFFERRANGEPROC glBindBufferRange = nullptr;
@@ -233,6 +235,8 @@ static void loadGLFunctions(BackendContext_GL* backendContext, ffx_glGetProcAddr
   backendContext->glFunctionTable.glUnmapNamedBuffer = (PFNGLUNMAPNAMEDBUFFERPROC)getProcAddress("glUnmapNamedBuffer");
   backendContext->glFunctionTable.glMemoryBarrier = (PFNGLMEMORYBARRIERPROC)getProcAddress("glMemoryBarrier");
   backendContext->glFunctionTable.glUseProgram = (PFNGLUSEPROGRAMPROC)getProcAddress("glUseProgram");
+  backendContext->glFunctionTable.glProgramUniform1i = (PFNGLPROGRAMUNIFORM1IPROC)getProcAddress("glProgramUniform1i");
+  backendContext->glFunctionTable.glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)getProcAddress("glGetUniformLocation");
   backendContext->glFunctionTable.glBindTextureUnit = (PFNGLBINDTEXTUREUNITPROC)getProcAddress("glBindTextureUnit");
   backendContext->glFunctionTable.glBindSampler = (PFNGLBINDSAMPLERPROC)getProcAddress("glBindSampler");
   backendContext->glFunctionTable.glBindBufferRange = (PFNGLBINDBUFFERRANGEPROC)getProcAddress("glBindBufferRange");
@@ -1055,18 +1059,18 @@ FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass pa
   FFX_ASSERT(shaderBlob.data && shaderBlob.size);
 
   // populate the pass.
-  outPipeline->srvCount = shaderBlob.sampledImageCount;
+  outPipeline->srvCount = shaderBlob.combinedSamplerCount;
   outPipeline->uavCount = shaderBlob.storageImageCount;
   outPipeline->constCount = shaderBlob.uniformBufferCount;
 
   FFX_ASSERT(shaderBlob.storageImageCount < FFX_MAX_NUM_UAVS);
-  FFX_ASSERT(shaderBlob.sampledImageCount < FFX_MAX_NUM_SRVS);
+  FFX_ASSERT(shaderBlob.combinedSamplerCount < FFX_MAX_NUM_SRVS);
   std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
   for (uint32_t srvIndex = 0; srvIndex < outPipeline->srvCount; ++srvIndex)
   {
-    outPipeline->srvResourceBindings[srvIndex].slotIndex = shaderBlob.boundSampledImageBindings[srvIndex];
-    wcscpy_s(outPipeline->srvResourceBindings[srvIndex].name, converter.from_bytes(shaderBlob.boundSampledImageNames[srvIndex]).c_str());
+    outPipeline->srvResourceBindings[srvIndex].slotIndex = shaderBlob.boundCombinedSamplerBindings[srvIndex];
+    wcscpy_s(outPipeline->srvResourceBindings[srvIndex].name, converter.from_bytes(shaderBlob.boundCombinedSamplerNames[srvIndex]).c_str());
   }
   for (uint32_t uavIndex = 0; uavIndex < outPipeline->uavCount; ++uavIndex)
   {
@@ -1184,15 +1188,31 @@ static void addBarrier(BackendContext_GL* backendContext, FfxResourceInternal* r
 
 static FfxErrorCode executeGpuJobCompute(BackendContext_GL* backendContext, FfxGpuJobDescription* job)
 {
+  const auto program = static_cast<GLuint>(reinterpret_cast<uintptr_t>(job->computeJobDescriptor.pipeline.pipeline));
+
   // bind uavs (storage images)
+  GLuint currBinding = 0;
   for (uint32_t uav = 0; uav < job->computeJobDescriptor.pipeline.uavCount; ++uav)
   {
     addBarrier(backendContext, &job->computeJobDescriptor.uavs[uav], FFX_RESOURCE_STATE_UNORDERED_ACCESS);
 
     BackendContext_GL::Resource ffxResource = backendContext->resources[job->computeJobDescriptor.uavs[uav].internalIndex];
 
+    char name[64] = {};
+    size_t retval = 0;
+    wcstombs_s(&retval, name, sizeof(name), job->computeJobDescriptor.pipeline.uavResourceBindings[uav].name, sizeof(name));
+    if (retval >= 64) return FFX_ERROR_BACKEND_API_ERROR;
+
+    // not ideal to call every time
+    const auto location = backendContext->glFunctionTable.glGetUniformLocation(program, name);
+
+    FFX_ASSERT(location != -1);
+
+    // also not ideal to call every time
+    backendContext->glFunctionTable.glProgramUniform1i(program, location, currBinding);
+
     backendContext->glFunctionTable.glBindImageTexture(
-      job->computeJobDescriptor.pipeline.uavResourceBindings[uav].slotIndex,
+      currBinding++,
       ffxResource.textureSingleMipViews[job->computeJobDescriptor.uavMip[uav]].id,
       0,
       true,
@@ -1226,7 +1246,7 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_GL* backendContext, FfxG
     );
   }
 
-  backendContext->glFunctionTable.glUseProgram(reinterpret_cast<uintptr_t>(job->computeJobDescriptor.pipeline.pipeline));
+  backendContext->glFunctionTable.glUseProgram(program);
   backendContext->glFunctionTable.glDispatchCompute(job->computeJobDescriptor.dimensions[0], job->computeJobDescriptor.dimensions[1], job->computeJobDescriptor.dimensions[2]);
 
   return FFX_OK;

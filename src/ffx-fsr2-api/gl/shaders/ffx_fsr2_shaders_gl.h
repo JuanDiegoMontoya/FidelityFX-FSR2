@@ -34,12 +34,12 @@ extern "C" {
         const uint8_t*  data;                       // A pointer to the blob 
         uint32_t        size;                       // Size in bytes.
         uint32_t        storageImageCount;          // Number of storage images.
-        uint32_t        sampledImageCount;          // Number of sampled images.
+        uint32_t        combinedSamplerCount;          // Number of sampled images.
         uint32_t        uniformBufferCount;         // Number of uniform buffers.
         const char**    boundStorageImageNames;
         const uint32_t* boundStorageImageBindings;  // Pointer to an array of bound UAV resources.
-        const char**    boundSampledImageNames;
-        const uint32_t* boundSampledImageBindings;  // Pointer to an array of bound SRV resources.
+        const char**    boundCombinedSamplerNames;
+        const uint32_t* boundCombinedSamplerBindings;  // Pointer to an array of bound SRV resources.
         const char**    boundUniformBufferNames;
         const uint32_t* boundUniformBufferBindings; // Pointer to an array of bound ConstantBuffers.
     } Fsr2ShaderBlobGL;
