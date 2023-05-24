@@ -30,8 +30,8 @@
 #include <codecvt>
 
 // prototypes for functions in the interface
-FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDeviceCapabilities* deviceCapabilities, FfxDevice device);
-FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevice device);
+FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDeviceCapabilities* deviceCapabilities, FfxDevice);
+FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevice);
 FfxErrorCode DestroyBackendContextGL(FfxFsr2Interface* backendInterface);
 FfxErrorCode CreateResourceGL(FfxFsr2Interface* backendInterface, const FfxCreateResourceDescription* desc, FfxResourceInternal* outResource);
 FfxErrorCode RegisterResourceGL(FfxFsr2Interface* backendInterface, const FfxResource* inResource, FfxResourceInternal* outResourceInternal);
@@ -41,28 +41,25 @@ FfxErrorCode DestroyResourceGL(FfxFsr2Interface* backendInterface, FfxResourceIn
 FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass passId, const FfxPipelineDescription* desc, FfxPipelineState* outPass);
 FfxErrorCode DestroyPipelineGL(FfxFsr2Interface* backendInterface, FfxPipelineState* pipeline);
 FfxErrorCode ScheduleGpuJobGL(FfxFsr2Interface* backendInterface, const FfxGpuJobDescription* job);
-FfxErrorCode ExecuteGpuJobsGL(FfxFsr2Interface* backendInterface, FfxCommandList commandList);
+FfxErrorCode ExecuteGpuJobsGL(FfxFsr2Interface* backendInterface, FfxCommandList);
 
 namespace
 {
   constexpr uint32_t FSR2_MAX_QUEUED_FRAMES          = 4;
   constexpr uint32_t FSR2_MAX_RESOURCE_COUNT         = 64;
   constexpr uint32_t FSR2_MAX_STAGING_RESOURCE_COUNT = 8;
-  constexpr uint32_t FSR2_MAX_BARRIERS               = 16;
   constexpr uint32_t FSR2_MAX_GPU_JOBS               = 32;
-  constexpr uint32_t FSR2_MAX_IMAGE_COPY_MIPS        = 32;
-  constexpr uint32_t FSR2_MAX_SAMPLERS               = 2;
   constexpr uint32_t FSR2_MAX_UNIFORM_BUFFERS        = 4;
   constexpr uint32_t FSR2_MAX_IMAGE_VIEWS            = 32;
   constexpr uint32_t FSR2_MAX_BUFFERED_DESCRIPTORS   = FFX_FSR2_PASS_COUNT * FSR2_MAX_QUEUED_FRAMES;
   constexpr uint32_t FSR2_UBO_RING_BUFFER_SIZE       = FSR2_MAX_BUFFERED_DESCRIPTORS * FSR2_MAX_UNIFORM_BUFFERS;
-  constexpr uint32_t FSR2_UBO_MEMORY_BLOCK_SIZE      = FSR2_UBO_RING_BUFFER_SIZE * 256;
+  constexpr uint32_t FSR2_UBO_SIZE                   = 256;
 
   namespace GL
   {
-    struct Texture { GLuint id{}; };
-    struct Buffer { GLuint id{}; };
-    struct Sampler { GLuint id{}; };
+    struct Texture { GLuint id = {}; };
+    struct Buffer { GLuint id = {}; };
+    struct Sampler { GLuint id = {}; };
   }
 }
 
@@ -77,7 +74,7 @@ struct BackendContext_GL {
     char                    resourceName[64] = {};
 #endif
     FfxResourceDescription  resourceDescription;
-    FfxResourceStates       state;
+    //FfxResourceStates       state;
 
     GL::Buffer buffer = {};
 
@@ -88,14 +85,16 @@ struct BackendContext_GL {
 
   struct UniformBuffer
   {
-    GL::Buffer bufferResource;
-    uint8_t* pData;
+    GL::Buffer bufferResource = {};
+    uint8_t* pData = {};
   };
 
   struct GLFunctionTable
   {
     ffx_glGetProcAddress glGetProcAddress = nullptr;
     PFNGLGETINTEGERVPROC glGetIntegerv = nullptr;
+    PFNGLGETSTRINGIPROC glGetStringi = nullptr;
+    PFNGLGETSTRINGPROC glGetString = nullptr;
     PFNGLGETSHADERIVPROC glGetShaderiv = nullptr;
     PFNGLGETPROGRAMIVPROC glGetProgramiv = nullptr;
     PFNGLOBJECTLABELPROC glObjectLabel = nullptr;
@@ -142,6 +141,7 @@ struct BackendContext_GL {
   };
 
   GLFunctionTable         glFunctionTable = {};
+  FfxDeviceCapabilities   capabilities = {};
 
   uint32_t                gpuJobCount = 0;
   FfxGpuJobDescription    gpuJobs[FSR2_MAX_GPU_JOBS] = {};
@@ -208,6 +208,8 @@ static void loadGLFunctions(BackendContext_GL* backendContext, ffx_glGetProcAddr
 
   backendContext->glFunctionTable.glObjectLabel = (PFNGLOBJECTLABELPROC)getProcAddress("glObjectLabel");
   backendContext->glFunctionTable.glGetIntegerv = (PFNGLGETINTEGERVPROC)getProcAddress("glGetIntegerv");
+  backendContext->glFunctionTable.glGetString = (PFNGLGETSTRINGPROC)getProcAddress("glGetString");
+  backendContext->glFunctionTable.glGetStringi = (PFNGLGETSTRINGIPROC)getProcAddress("glGetStringi");
   backendContext->glFunctionTable.glGetShaderiv = (PFNGLGETSHADERIVPROC)getProcAddress("glGetShaderiv");
   backendContext->glFunctionTable.glGetProgramiv = (PFNGLGETPROGRAMIVPROC)getProcAddress("glGetProgramiv");
   backendContext->glFunctionTable.glCreateSamplers = (PFNGLCREATESAMPLERSPROC)getProcAddress("glCreateSamplers");
@@ -425,23 +427,6 @@ static BackendContext_GL::UniformBuffer accquireDynamicUBO(BackendContext_GL* ba
   return ubo;
 }
 
-static uint32_t getDefaultSubgroupSize(const BackendContext_GL* backendContext)
-{
-  //VkPhysicalDeviceVulkan11Properties vulkan11Properties = {};
-  //vulkan11Properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
-
-  //VkPhysicalDeviceProperties2 deviceProperties2 = {};
-  //deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-  //deviceProperties2.pNext = &vulkan11Properties;
-  //vkGetPhysicalDeviceProperties2(backendContext->physicalDevice, &deviceProperties2);
-  //FFX_ASSERT(vulkan11Properties.subgroupSize == 32 || vulkan11Properties.subgroupSize == 64); // current desktop market
-
-  //return vulkan11Properties.subgroupSize;
-
-// @todo IMPLEMENT WHEN SUBGROUP OPS ARE ENABLED
-  return 32;
-}
-
 FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context,
   GLuint imageGL,
   uint32_t width,
@@ -451,7 +436,7 @@ FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context,
   FfxResourceStates state)
 {
   FfxResource resource = {};
-  resource.resource = reinterpret_cast<void*>(imageGL);
+  resource.resource = reinterpret_cast<void*>(static_cast<uintptr_t>(imageGL));
   resource.state = state;
   resource.descriptorData = 0;
   resource.description.flags = FFX_RESOURCE_FLAGS_NONE;
@@ -491,7 +476,7 @@ FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context,
 FfxResource ffxGetBufferResourceGL(FfxFsr2Context* context, GLuint bufferGL, uint32_t size, const wchar_t* name, FfxResourceStates state)
 {
   FfxResource resource = {};
-  resource.resource = reinterpret_cast<void*>(bufferGL);
+  resource.resource = reinterpret_cast<void*>(static_cast<uintptr_t>(bufferGL));
   resource.state = state;
   resource.descriptorData = 0;
   resource.description.flags = FFX_RESOURCE_FLAGS_NONE;
@@ -514,7 +499,7 @@ FfxResource ffxGetBufferResourceGL(FfxFsr2Context* context, GLuint bufferGL, uin
 
 GLuint ffxGetGLImage(FfxFsr2Context* context, uint32_t resId)
 {
-  FFX_ASSERT(NULL != context);
+  FFX_ASSERT(context);
 
   FfxFsr2Context_Private* contextPrivate = (FfxFsr2Context_Private*)(context);
   BackendContext_GL* backendContext = (BackendContext_GL*)(contextPrivate->contextDescription.callbacks.scratchBuffer);
@@ -530,7 +515,7 @@ FfxErrorCode RegisterResourceGL(
   FfxResourceInternal* outFfxResourceInternal
 )
 {
-  FFX_ASSERT(NULL != backendInterface);
+  FFX_ASSERT(backendInterface);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)(backendInterface->scratchBuffer);
 
@@ -546,7 +531,6 @@ FfxErrorCode RegisterResourceGL(
   BackendContext_GL::Resource* backendResource = &backendContext->resources[outFfxResourceInternal->internalIndex];
 
   backendResource->resourceDescription = inFfxResource->description;
-  backendResource->state = inFfxResource->state;
 
 #ifdef _DEBUG
   size_t retval = 0;
@@ -556,13 +540,13 @@ FfxErrorCode RegisterResourceGL(
 
   if (inFfxResource->description.type == FFX_RESOURCE_TYPE_BUFFER)
   {
-    const GLuint buffer = reinterpret_cast<GLuint>(inFfxResource->resource);
+    const auto buffer = static_cast<GLuint>(reinterpret_cast<uintptr_t>(inFfxResource->resource));
 
     backendResource->buffer = { buffer };
   }
   else
   {
-    const GLuint texture = reinterpret_cast<GLuint>(inFfxResource->resource);
+    const auto texture = static_cast<GLuint>(reinterpret_cast<uintptr_t>(inFfxResource->resource));
 
     backendResource->textureAllMipsView = { texture };
     backendResource->textureSingleMipViews[0] = { texture };
@@ -576,7 +560,6 @@ FfxErrorCode RegisterResourceGL(
       {
         backendResource->textureAspect = BackendContext_GL::Aspect::COLOR;
       }
-
     }
   }
 
@@ -586,7 +569,7 @@ FfxErrorCode RegisterResourceGL(
 // dispose dynamic resources: This should be called at the end of the frame
 FfxErrorCode UnregisterResourcesGL(FfxFsr2Interface* backendInterface)
 {
-  FFX_ASSERT(NULL != backendInterface);
+  FFX_ASSERT(backendInterface);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)(backendInterface->scratchBuffer);
 
@@ -595,95 +578,75 @@ FfxErrorCode UnregisterResourcesGL(FfxFsr2Interface* backendInterface)
   return FFX_OK;
 }
 
-FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDeviceCapabilities* deviceCapabilities, FfxDevice device)
+FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDeviceCapabilities* deviceCapabilities, FfxDevice)
 {
-  BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
+  FFX_ASSERT(backendInterface);
+  FFX_ASSERT(deviceCapabilities);
 
-  const uint32_t defaultSubgroupSize = getDefaultSubgroupSize(backendContext);
+  BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
   // no shader model in vulkan so assume the minimum
   deviceCapabilities->minimumSupportedShaderModel = FFX_SHADER_MODEL_5_1;
-  deviceCapabilities->waveLaneCountMin = defaultSubgroupSize;
-  deviceCapabilities->waveLaneCountMax = defaultSubgroupSize;
+  deviceCapabilities->waveLaneCountMin = 0;
+  deviceCapabilities->waveLaneCountMax = 0;
   deviceCapabilities->fp16Supported = false;
   deviceCapabilities->raytracingSupported = false;
 
   // check if extensions are enabled
 
 // @todo CHECK EXTENSIONS
-// GL_KHR_shader_subgroup
-  //for (uint32_t i = 0; i < backendContext->numDeviceExtensions; i++)
-  //{
-  //    if (strcmp(backendContext->extensionProperties[i].extensionName, VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME) == 0)
-  //    {
-  //        // check if we the max subgroup size allows us to use wave64
-  //        VkPhysicalDeviceSubgroupSizeControlProperties subgroupSizeControlProperties = {};
-  //        subgroupSizeControlProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES;
 
-  //        VkPhysicalDeviceProperties2 deviceProperties2 = {};
-  //        deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-  //        deviceProperties2.pNext = &subgroupSizeControlProperties;
-  //        vkGetPhysicalDeviceProperties2(backendContext->physicalDevice, &deviceProperties2);
+  bool subgroupSupported = false;
 
-  //        // NOTE: It's important to check requiredSubgroupSizeStages flags (and it's required by the spec).
-  //        // As of August 2022, AMD's Vulkan drivers do not support subgroup size selection through Vulkan API
-  //        // and this information is reported through requiredSubgroupSizeStages flags.
-  //        if (subgroupSizeControlProperties.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT)
-  //        {
-  //            deviceCapabilities->waveLaneCountMin = subgroupSizeControlProperties.minSubgroupSize;
-  //            deviceCapabilities->waveLaneCountMax = subgroupSizeControlProperties.maxSubgroupSize;
-  //        }
-  //    }
-  //    if (strcmp(backendContext->extensionProperties[i].extensionName, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME) == 0)
-  //    {
-  //        // check for fp16 support
-  //        VkPhysicalDeviceShaderFloat16Int8Features shaderFloat18Int8Features = {};
-  //        shaderFloat18Int8Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
+  GLint numExtensions{};
+  glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+  for (GLint i = 0; i < numExtensions; i++)
+  {
+    const auto* extensionString = reinterpret_cast<const char*>(backendContext->glFunctionTable.glGetStringi(GL_EXTENSIONS, i));
+    if (strcmp(extensionString, "GL_KHR_shader_subgroup") == 0)
+    {
+      GLint supportedStages{};
+      backendContext->glFunctionTable.glGetIntegerv(GL_SUBGROUP_SUPPORTED_STAGES_KHR, &supportedStages);
+      if (supportedStages & GL_COMPUTE_SHADER_BIT)
+      {
+        subgroupSupported = true;
+      }
+    }
+    if (strcmp(extensionString, "NV_gpu_shader5") == 0 || strcmp(extensionString, "AMD_gpu_shader_half_float") == 0)
+    {
+      deviceCapabilities->fp16Supported = true;
+    }
+  }
 
-  //        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2 = {};
-  //        physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  //        physicalDeviceFeatures2.pNext = &shaderFloat18Int8Features;
+  if (!subgroupSupported)
+  {
+    return FFX_ERROR_BACKEND_API_ERROR; // GL_KHR_shader_subgroup is required
+  }
 
-  //        vkGetPhysicalDeviceFeatures2(backendContext->physicalDevice, &physicalDeviceFeatures2);
-
-  //        deviceCapabilities->fp16Supported = (bool)shaderFloat18Int8Features.shaderFloat16;
-  //    }
-  //    if (strcmp(backendContext->extensionProperties[i].extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0)
-  //    {
-  //        // check for ray tracing support 
-  //        VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures = {};
-  //        accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-
-  //        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2 = {};
-  //        physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  //        physicalDeviceFeatures2.pNext = &accelerationStructureFeatures;
-
-  //        vkGetPhysicalDeviceFeatures2(backendContext->physicalDevice, &physicalDeviceFeatures2);
-
-  //        deviceCapabilities->raytracingSupported = (bool)accelerationStructureFeatures.accelerationStructure;
-  //    }
-  //}
+  GLint subgroupSize{};
+  backendContext->glFunctionTable.glGetIntegerv(GL_SUBGROUP_SIZE_KHR, &subgroupSize);
+  deviceCapabilities->waveLaneCountMin = static_cast<uint32_t>(subgroupSize);
+  deviceCapabilities->waveLaneCountMax = static_cast<uint32_t>(subgroupSize);
+  
   return FFX_OK;
 }
 
-FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevice device)
+FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevice)
 {
-  FFX_ASSERT(NULL != backendInterface);
+  FFX_ASSERT(backendInterface);
 
   // set up some internal resources we need (space for resource views and constant buffers)
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
+  FFX_VALIDATE(GetDeviceCapabilitiesGL(backendInterface, &backendContext->capabilities, nullptr));
+
   backendContext->nextStaticResource = 0;
   backendContext->nextDynamicResource = FSR2_MAX_RESOURCE_COUNT - 1;
 
-  // load vulkan functions
+  // load OpenGL functions
   loadGLFunctions(backendContext, backendContext->glFunctionTable.glGetProcAddress);
 
-  // enumerate all the device extensions 
-  //backendContext->numDeviceExtensions = 0;
-  //vkEnumerateDeviceExtensionProperties(backendContext->physicalDevice, nullptr, &backendContext->numDeviceExtensions, nullptr);
-  //vkEnumerateDeviceExtensionProperties(backendContext->physicalDevice, nullptr, &backendContext->numDeviceExtensions, backendContext->extensionProperties);
-
+  // create samplers
   backendContext->glFunctionTable.glCreateSamplers(1, &backendContext->pointSampler.id);
   backendContext->glFunctionTable.glSamplerParameteri(backendContext->pointSampler.id, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
   backendContext->glFunctionTable.glSamplerParameteri(backendContext->pointSampler.id, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -710,10 +673,10 @@ FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevic
     BackendContext_GL::UniformBuffer& ubo = backendContext->uboRingBuffer[i];
     backendContext->glFunctionTable.glCreateBuffers(1, &ubo.bufferResource.id);
     constexpr GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    backendContext->glFunctionTable.glNamedBufferStorage(ubo.bufferResource.id, 256, nullptr, mapFlags);
+    backendContext->glFunctionTable.glNamedBufferStorage(ubo.bufferResource.id, FSR2_UBO_SIZE, nullptr, mapFlags);
 
     // map the memory block 
-    ubo.pData = (uint8_t*)backendContext->glFunctionTable.glMapNamedBufferRange(ubo.bufferResource.id, 0, 256, mapFlags);
+    ubo.pData = (uint8_t*)backendContext->glFunctionTable.glMapNamedBufferRange(ubo.bufferResource.id, 0, FSR2_UBO_SIZE, mapFlags);
 
     if (!ubo.pData)
     {
@@ -730,7 +693,7 @@ FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevic
 
 FfxErrorCode DestroyBackendContextGL(FfxFsr2Interface* backendInterface)
 {
-  FFX_ASSERT(NULL != backendInterface);
+  FFX_ASSERT(backendInterface);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
@@ -745,15 +708,13 @@ FfxErrorCode DestroyBackendContextGL(FfxFsr2Interface* backendInterface)
 
     // buffer is implicitly unmapped by deleting it
     backendContext->glFunctionTable.glDeleteBuffers(1, &ubo.bufferResource.id);
-
-    ubo.bufferResource = {};
-    ubo.pData = nullptr;
   }
 
   backendContext->glFunctionTable.glDeleteSamplers(1, &backendContext->pointSampler.id);
   backendContext->glFunctionTable.glDeleteSamplers(1, &backendContext->linearSampler.id);
-  backendContext->pointSampler = {};
-  backendContext->linearSampler = {};
+
+  // clear all the fields of the context
+  *backendContext = {};
 
   return FFX_OK;
 }
@@ -764,9 +725,9 @@ FfxErrorCode CreateResourceGL(
   const FfxCreateResourceDescription* createResourceDescription,
   FfxResourceInternal* outResource)
 {
-  FFX_ASSERT(NULL != backendInterface);
-  FFX_ASSERT(NULL != createResourceDescription);
-  FFX_ASSERT(NULL != outResource);
+  FFX_ASSERT(backendInterface);
+  FFX_ASSERT(createResourceDescription);
+  FFX_ASSERT(outResource);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
@@ -925,73 +886,12 @@ FfxErrorCode CreateResourceGL(
 #endif
   }
 
-  /*
-    if (createResourceDescription->initData)
-    {
-        // only allow copies directy into mapped memory for buffer resources since all texture resources are in optimal tiling
-        if (createResourceDescription->heapType == FFX_HEAP_TYPE_UPLOAD && createResourceDescription->resourceDescription.type == FFX_RESOURCE_TYPE_BUFFER)
-        {
-            void* data = NULL;
-
-            if (backendContext->vkFunctionTable.vkMapMemory(backendContext->device, res->deviceMemory, 0, createResourceDescription->initDataSize, 0, &data) != VK_SUCCESS) {
-                return FFX_ERROR_BACKEND_API_ERROR;
-            }
-
-            memcpy(data, createResourceDescription->initData, createResourceDescription->initDataSize);
-
-            // flush mapped range if memory type is not coherant
-            if ((res->memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
-            {
-                VkMappedMemoryRange memoryRange = {};
-                memoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-                memoryRange.memory = res->deviceMemory;
-                memoryRange.size = createResourceDescription->initDataSize;
-
-                backendContext->vkFunctionTable.vkFlushMappedMemoryRanges(backendContext->device, 1, &memoryRange);
-            }
-
-            backendContext->vkFunctionTable.vkUnmapMemory(backendContext->device, res->deviceMemory);
-        }
-        else
-        {
-            FfxResourceInternal copySrc;
-            FfxCreateResourceDescription uploadDesc = { *createResourceDescription };
-            uploadDesc.heapType = FFX_HEAP_TYPE_UPLOAD;
-            uploadDesc.resourceDescription.type = FFX_RESOURCE_TYPE_BUFFER;
-            uploadDesc.resourceDescription.width = createResourceDescription->initDataSize;
-            uploadDesc.usage = FFX_RESOURCE_USAGE_READ_ONLY;
-            uploadDesc.initalState = FFX_RESOURCE_STATE_GENERIC_READ;
-            uploadDesc.initData = createResourceDescription->initData;
-            uploadDesc.initDataSize = createResourceDescription->initDataSize;
-
-            backendInterface->fpCreateResource(backendInterface, &uploadDesc, &copySrc);
-
-            // setup the upload job
-            FfxGpuJobDescription copyJob =
-            {
-                FFX_GPU_JOB_COPY
-            };
-            copyJob.copyJobDescriptor.src = copySrc;
-            copyJob.copyJobDescriptor.dst = *outResource;
-
-            backendInterface->fpScheduleGpuJob(backendInterface, &copyJob);
-
-            // add to the list of staging resources to delete later
-            uint32_t stagingResIdx = backendContext->stagingResourceCount++;
-
-            FFX_ASSERT(backendContext->stagingResourceCount < FSR2_MAX_STAGING_RESOURCE_COUNT);
-
-            backendContext->stagingResources[stagingResIdx] = copySrc;
-        }
-    }
-    */
-
   return FFX_OK;
 }
 
 FfxResourceDescription GetResourceDescriptorGL(FfxFsr2Interface* backendInterface, FfxResourceInternal resource)
 {
-  FFX_ASSERT(NULL != backendInterface);
+  FFX_ASSERT(backendInterface);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
@@ -1005,8 +905,8 @@ FfxResourceDescription GetResourceDescriptorGL(FfxFsr2Interface* backendInterfac
 
 FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass pass, const FfxPipelineDescription* pipelineDescription, FfxPipelineState* outPipeline)
 {
-  FFX_ASSERT(NULL != backendInterface);
-  FFX_ASSERT(NULL != pipelineDescription);
+  FFX_ASSERT(backendInterface);
+  FFX_ASSERT(pipelineDescription);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
@@ -1014,37 +914,26 @@ FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass pa
   FfxDeviceCapabilities deviceCapabilities;
 
   GetDeviceCapabilitiesGL(backendInterface, &deviceCapabilities, nullptr);
-  const uint32_t defaultSubgroupSize = getDefaultSubgroupSize(backendContext);
-
-  // check if we can force wave64
-  bool canForceWave64 = false;
+  
   bool useLut = false;
 
-  if (defaultSubgroupSize == 32 && deviceCapabilities.waveLaneCountMax == 64)
-  {
-    useLut = true;
-    canForceWave64 = true;
-  }
-  else if (defaultSubgroupSize == 64)
+  if (deviceCapabilities.waveLaneCountMax == 64)
   {
     useLut = true;
   }
 
   // check if we have 16bit floating point.
   bool supportedFP16 = deviceCapabilities.fp16Supported;
-
-  // @todo check if vendor string is nvidia, then disable FP16 for these passes
-  /*
+  
   if (pass == FFX_FSR2_PASS_ACCUMULATE || pass == FFX_FSR2_PASS_ACCUMULATE_SHARPEN)
   {
-      VkPhysicalDeviceProperties physicalDeviceProperties = {};
-      vkGetPhysicalDeviceProperties(backendContext->physicalDevice, &physicalDeviceProperties);
-
-      // Workaround: Disable FP16 path for the accumulate pass on NVIDIA due to reduced occupancy and high VRAM throughput.
-      if (physicalDeviceProperties.vendorID == 0x10DE)
-          supportedFP16 = false;
+    // Workaround: Disable FP16 path for the accumulate pass on NVIDIA due to reduced occupancy and high VRAM throughput.
+    const auto* vendor = reinterpret_cast<const char*>(backendContext->glFunctionTable.glGetString(GL_VENDOR));
+    if (strstr(vendor, "NVIDIA"))
+    {
+      supportedFP16 = false;
+    }
   }
-  */
 
   // work out what permutation to load.
   uint32_t flags = 0;
@@ -1054,7 +943,7 @@ FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass pa
   flags |= (pipelineDescription->contextFlags & FFX_FSR2_ENABLE_DEPTH_INVERTED) ? FSR2_SHADER_PERMUTATION_DEPTH_INVERTED : 0;
   flags |= (pass == FFX_FSR2_PASS_ACCUMULATE_SHARPEN) ? FSR2_SHADER_PERMUTATION_ENABLE_SHARPENING : 0;
   flags |= (useLut) ? FSR2_SHADER_PERMUTATION_REPROJECT_USE_LANCZOS_TYPE : 0;
-  flags |= (canForceWave64) ? FSR2_SHADER_PERMUTATION_FORCE_WAVE64 : 0;
+  //flags |= (canForceWave64) ? FSR2_SHADER_PERMUTATION_FORCE_WAVE64 : 0; // cannot force wave64 in OpenGL
   flags |= (supportedFP16 && (pass != FFX_FSR2_PASS_RCAS)) ? FSR2_SHADER_PERMUTATION_ALLOW_FP16 : 0;
 
   const Fsr2ShaderBlobGL shaderBlob = fsr2GetPermutationBlobByIndexGL(pass, flags);
@@ -1097,19 +986,6 @@ FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass pa
     return FFX_ERROR_BACKEND_API_ERROR;
   }
 
-  /*
-    // set wave64 if possible
-    VkPipelineShaderStageRequiredSubgroupSizeCreateInfo subgroupSizeCreateInfo = {};
-
-    if (canForceWave64) {
-
-        subgroupSizeCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO;
-        subgroupSizeCreateInfo.requiredSubgroupSize = 64;
-
-        shaderStageCreateInfo.pNext = &subgroupSizeCreateInfo;
-    }
-  */
-
   // create the compute pipeline
   GLuint program = backendContext->glFunctionTable.glCreateProgram();
   backendContext->glFunctionTable.glAttachShader(program, shader);
@@ -1125,7 +1001,7 @@ FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass pa
 
   backendContext->glFunctionTable.glDeleteShader(shader);
 
-  outPipeline->pipeline = reinterpret_cast<FfxPipeline>(program);
+  outPipeline->pipeline = reinterpret_cast<FfxPipeline>(static_cast<uintptr_t>(program));
   outPipeline->rootSignature = nullptr;
 
   return FFX_OK;
@@ -1133,8 +1009,8 @@ FfxErrorCode CreatePipelineGL(FfxFsr2Interface* backendInterface, FfxFsr2Pass pa
 
 FfxErrorCode ScheduleGpuJobGL(FfxFsr2Interface* backendInterface, const FfxGpuJobDescription* job)
 {
-  FFX_ASSERT(NULL != backendInterface);
-  FFX_ASSERT(NULL != job);
+  FFX_ASSERT(backendInterface);
+  FFX_ASSERT(job);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
@@ -1159,66 +1035,48 @@ FfxErrorCode ScheduleGpuJobGL(FfxFsr2Interface* backendInterface, const FfxGpuJo
   return FFX_OK;
 }
 
-static void addBarrier(BackendContext_GL* backendContext, FfxResourceInternal* resource, FfxResourceStates newState)
+static void addBarrier(const BackendContext_GL* backendContext, bool isBufferBarrier, FfxResourceStates newState)
 {
-  FFX_ASSERT(NULL != backendContext);
-  FFX_ASSERT(NULL != resource);
+  FFX_ASSERT(backendContext);
 
-  BackendContext_GL::Resource& ffxResource = backendContext->resources[resource->internalIndex];
-
-  backendContext->resources[resource->internalIndex].state = newState;
-
-  if (ffxResource.resourceDescription.type == FFX_RESOURCE_TYPE_BUFFER)
+  if (isBufferBarrier)
   {
     GLbitfield barriers = 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_UNORDERED_ACCESS) ? GL_SHADER_STORAGE_BARRIER_BIT : 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_COMPUTE_READ) ? GL_UNIFORM_BARRIER_BIT : 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_COPY_SRC) ? (GL_BUFFER_UPDATE_BARRIER_BIT | GL_PIXEL_BUFFER_BARRIER_BIT) : 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_COPY_DEST) ? (GL_BUFFER_UPDATE_BARRIER_BIT | GL_PIXEL_BUFFER_BARRIER_BIT) : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_UNORDERED_ACCESS) ? GL_SHADER_STORAGE_BARRIER_BIT : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_COMPUTE_READ) ? GL_UNIFORM_BARRIER_BIT : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_COPY_SRC) ? (GL_BUFFER_UPDATE_BARRIER_BIT | GL_PIXEL_BUFFER_BARRIER_BIT) : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_COPY_DEST) ? (GL_BUFFER_UPDATE_BARRIER_BIT | GL_PIXEL_BUFFER_BARRIER_BIT) : 0;
     backendContext->glFunctionTable.glMemoryBarrier(barriers);
   }
   else
   {
     GLbitfield barriers = 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_UNORDERED_ACCESS) ? GL_SHADER_IMAGE_ACCESS_BARRIER_BIT : 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_COMPUTE_READ) ? (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT) : 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_COPY_SRC) ? GL_TEXTURE_UPDATE_BARRIER_BIT : 0;
-    barriers |= (newState & FfxResourceStates::FFX_RESOURCE_STATE_COPY_DEST) ? GL_TEXTURE_UPDATE_BARRIER_BIT : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_UNORDERED_ACCESS) ? GL_SHADER_IMAGE_ACCESS_BARRIER_BIT : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_COMPUTE_READ) ? (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT) : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_COPY_SRC) ? GL_TEXTURE_UPDATE_BARRIER_BIT : 0;
+    barriers |= (newState & FFX_RESOURCE_STATE_COPY_DEST) ? GL_TEXTURE_UPDATE_BARRIER_BIT : 0;
     backendContext->glFunctionTable.glMemoryBarrier(barriers);
   }
 }
 
 static FfxErrorCode executeGpuJobCompute(BackendContext_GL* backendContext, FfxGpuJobDescription* job)
 {
+  FFX_ASSERT(backendContext);
+
   const auto program = static_cast<GLuint>(reinterpret_cast<uintptr_t>(job->computeJobDescriptor.pipeline.pipeline));
 
   // bind uavs (storage images)
-  GLuint currBinding = 0;
+  if (job->computeJobDescriptor.pipeline.uavCount > 0)
+  {
+    addBarrier(backendContext, false, FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+  }
+
   for (uint32_t uav = 0; uav < job->computeJobDescriptor.pipeline.uavCount; ++uav)
   {
-    addBarrier(backendContext, &job->computeJobDescriptor.uavs[uav], FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-
     BackendContext_GL::Resource ffxResource = backendContext->resources[job->computeJobDescriptor.uavs[uav].internalIndex];
 
-    char name[64] = {};
-    size_t retval = 0;
-    wcstombs_s(&retval, name, sizeof(name), job->computeJobDescriptor.pipeline.uavResourceBindings[uav].name, sizeof(name));
-    if (retval >= 64) return FFX_ERROR_BACKEND_API_ERROR;
-
-    // not ideal to call every time
-    const auto location = backendContext->glFunctionTable.glGetUniformLocation(program, name);
-
-    // skip binding unused images
-    if (location == -1)
-    {
-      continue;
-    }
-
-    // also not ideal to call every time
-    backendContext->glFunctionTable.glProgramUniform1i(program, location, currBinding);
-
     backendContext->glFunctionTable.glBindImageTexture(
-      currBinding++,
+      job->computeJobDescriptor.pipeline.uavResourceBindings[uav].slotIndex,
       ffxResource.textureSingleMipViews[job->computeJobDescriptor.uavMip[uav]].id,
       0,
       true,
@@ -1229,10 +1087,13 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_GL* backendContext, FfxG
   }
 
   // bind srvs (sampled textures)
+  if (job->computeJobDescriptor.pipeline.srvCount > 0)
+  {
+    addBarrier(backendContext, false, FFX_RESOURCE_STATE_COMPUTE_READ);
+  }
+
   for (uint32_t srv = 0; srv < job->computeJobDescriptor.pipeline.srvCount; ++srv)
   {
-    addBarrier(backendContext, &job->computeJobDescriptor.srvs[srv], FFX_RESOURCE_STATE_COMPUTE_READ);
-
     BackendContext_GL::Resource ffxResource = backendContext->resources[job->computeJobDescriptor.srvs[srv].internalIndex];
 
     backendContext->glFunctionTable.glBindTextureUnit(job->computeJobDescriptor.pipeline.srvResourceBindings[srv].slotIndex, ffxResource.textureAllMipsView.id);
@@ -1248,7 +1109,7 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_GL* backendContext, FfxG
       job->computeJobDescriptor.pipeline.cbResourceBindings[i].slotIndex,
       ubo.bufferResource.id,
       0,
-      256
+      FSR2_UBO_SIZE
     );
   }
 
@@ -1258,109 +1119,16 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_GL* backendContext, FfxG
   return FFX_OK;
 }
 
-static FfxErrorCode executeGpuJobCopy(BackendContext_GL* backendContext, FfxGpuJobDescription* job)
-{
-  FFX_ASSERT_FAIL("Copy job is not implemented in OpenGL backend");
-  /*
-    BackendContext_GL::Resource ffxResourceSrc = backendContext->resources[job->copyJobDescriptor.src.internalIndex];
-    BackendContext_GL::Resource ffxResourceDst = backendContext->resources[job->copyJobDescriptor.dst.internalIndex];
-
-    addBarrier(backendContext, &job->copyJobDescriptor.src, FFX_RESOURCE_STATE_COPY_SRC);
-    addBarrier(backendContext, &job->copyJobDescriptor.dst, FFX_RESOURCE_STATE_COPY_DEST);
-
-    if (ffxResourceSrc.resourceDescription.type == FFX_RESOURCE_TYPE_BUFFER && ffxResourceDst.resourceDescription.type == FFX_RESOURCE_TYPE_BUFFER)
-    {
-      auto bufferSrc = ffxResourceSrc.resource.GetBuffer();
-      auto bufferDst = ffxResourceDst.resource.GetBuffer();
-
-      backendContext->glFunctionTable.glCopyNamedBufferSubData(bufferSrc.id, bufferDst.id, 0, 0, ffxResourceSrc.resourceDescription.width);
-    }
-    else if (ffxResourceSrc.resourceDescription.type == FFX_RESOURCE_TYPE_BUFFER && ffxResourceDst.resourceDescription.type != FFX_RESOURCE_TYPE_BUFFER)
-    {
-        VkBuffer vkResourceSrc = ffxResourceSrc.bufferResource;
-        VkImage vkResourceDst = ffxResourceDst.imageResource;
-
-        VkImageSubresourceLayers subresourceLayers = {};
-
-        subresourceLayers.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        subresourceLayers.baseArrayLayer = 0;
-        subresourceLayers.layerCount = 1;
-        subresourceLayers.mipLevel = 0;
-
-        VkOffset3D offset = {};
-
-        offset.x = 0;
-        offset.y = 0;
-        offset.z = 0;
-
-        VkExtent3D extent = {};
-
-        extent.width = ffxResourceDst.resourceDescription.width;
-        extent.height = ffxResourceDst.resourceDescription.height;
-        extent.depth = ffxResourceDst.resourceDescription.depth;
-
-        VkBufferImageCopy bufferImageCopy = {};
-
-        bufferImageCopy.bufferOffset = 0;
-        bufferImageCopy.bufferRowLength = 0;
-        bufferImageCopy.bufferImageHeight = 0;
-        bufferImageCopy.imageSubresource = subresourceLayers;
-        bufferImageCopy.imageOffset = offset;
-        bufferImageCopy.imageExtent = extent;
-
-        backendContext->vkFunctionTable.vkCmdCopyBufferToImage(vkCommandBuffer, vkResourceSrc, vkResourceDst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferImageCopy);
-    }
-    else
-    {
-        VkImageCopy             imageCopies[FSR2_MAX_IMAGE_COPY_MIPS];
-        VkImage vkResourceSrc = ffxResourceSrc.imageResource;
-        VkImage vkResourceDst = ffxResourceDst.imageResource;
-
-        for (uint32_t mip = 0; mip < ffxResourceSrc.resourceDescription.mipCount; mip++)
-        {
-            VkImageSubresourceLayers subresourceLayers = {};
-
-            subresourceLayers.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            subresourceLayers.baseArrayLayer = 0;
-            subresourceLayers.layerCount = 1;
-            subresourceLayers.mipLevel = mip;
-
-            VkOffset3D offset = {};
-
-            offset.x = 0;
-            offset.y = 0;
-            offset.z = 0;
-
-            VkExtent3D extent = {};
-
-            extent.width = ffxResourceSrc.resourceDescription.width / (mip + 1);
-            extent.height = ffxResourceSrc.resourceDescription.height / (mip + 1);
-            extent.depth = ffxResourceSrc.resourceDescription.depth / (mip + 1);
-
-            VkImageCopy& copyRegion = imageCopies[mip];
-
-            copyRegion.srcSubresource = subresourceLayers;
-            copyRegion.srcOffset = offset;
-            copyRegion.dstSubresource = subresourceLayers;
-            copyRegion.dstOffset = offset;
-            copyRegion.extent = extent;
-        }
-
-        backendContext->vkFunctionTable.vkCmdCopyImage(vkCommandBuffer, vkResourceSrc, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkResourceDst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ffxResourceSrc.resourceDescription.mipCount, imageCopies);
-    }
-    */
-
-  return FFX_OK;
-}
-
 static FfxErrorCode executeGpuJobClearFloat(BackendContext_GL* backendContext, FfxGpuJobDescription* job)
 {
+  FFX_ASSERT(backendContext);
+
   uint32_t idx = job->clearJobDescriptor.target.internalIndex;
   BackendContext_GL::Resource ffxResource = backendContext->resources[idx];
 
   if (ffxResource.resourceDescription.type != FFX_RESOURCE_TYPE_BUFFER)
   {
-    addBarrier(backendContext, &job->clearJobDescriptor.target, FFX_RESOURCE_STATE_COPY_DEST);
+    addBarrier(backendContext, false, FFX_RESOURCE_STATE_COPY_DEST);
 
     auto texture = ffxResource.textureAllMipsView;
 
@@ -1379,9 +1147,9 @@ static FfxErrorCode executeGpuJobClearFloat(BackendContext_GL* backendContext, F
   return FFX_OK;
 }
 
-FfxErrorCode ExecuteGpuJobsGL(FfxFsr2Interface* backendInterface, FfxCommandList commandList)
+FfxErrorCode ExecuteGpuJobsGL(FfxFsr2Interface* backendInterface, FfxCommandList)
 {
-  FFX_ASSERT(NULL != backendInterface);
+  FFX_ASSERT(backendInterface);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
@@ -1401,7 +1169,7 @@ FfxErrorCode ExecuteGpuJobsGL(FfxFsr2Interface* backendInterface, FfxCommandList
     }
     case FFX_GPU_JOB_COPY:
     {
-      errorCode = executeGpuJobCopy(backendContext, gpuJob);
+      FFX_ASSERT_FAIL("Copy job is not implemented in OpenGL backend");
       break;
     }
     case FFX_GPU_JOB_COMPUTE:
@@ -1425,7 +1193,7 @@ FfxErrorCode ExecuteGpuJobsGL(FfxFsr2Interface* backendInterface, FfxCommandList
 
 FfxErrorCode DestroyResourceGL(FfxFsr2Interface* backendInterface, FfxResourceInternal resource)
 {
-  FFX_ASSERT(backendInterface != nullptr);
+  FFX_ASSERT(backendInterface);
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
@@ -1465,14 +1233,17 @@ FfxErrorCode DestroyResourceGL(FfxFsr2Interface* backendInterface, FfxResourceIn
 
 FfxErrorCode DestroyPipelineGL(FfxFsr2Interface* backendInterface, FfxPipelineState* pipeline)
 {
-  FFX_ASSERT(backendInterface != nullptr);
+  FFX_ASSERT(backendInterface);
+
   if (!pipeline)
+  {
     return FFX_OK;
+  }
 
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
   // destroy pipeline 
-  GLuint program = reinterpret_cast<GLuint>(pipeline->pipeline);
+  const auto program = static_cast<GLuint>(reinterpret_cast<uintptr_t>(pipeline->pipeline));
   if (program) {
     backendContext->glFunctionTable.glDeleteProgram(program);
     pipeline->pipeline = nullptr;

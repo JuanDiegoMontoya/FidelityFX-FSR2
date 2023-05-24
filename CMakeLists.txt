@@ -86,7 +86,7 @@ option (FFX_FSR2_API_VK "Build FSR 2 Vulkan backend" ${GFX_API_VK})
 option (FFX_FSR2_API_GL "Build FSR 2 OpenGL backend" ${GFX_API_GL})
 
 # reference libs used by both backends
-if (GFX_API STREQUAL VK OR GFX_API STREQUAL DX)
+if ((GFX_API STREQUAL VK) OR (GFX_API STREQUAL DX))
     add_subdirectory(libs/cauldron)
     add_subdirectory(src/Common)
 endif()

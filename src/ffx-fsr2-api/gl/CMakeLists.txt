@@ -23,8 +23,9 @@ if(NOT ${FFX_FSR2_API_GL})
     return()
 endif()
 
+# begin sampler and texture bindings at 8 so generated image bindings start at a low index
 set(FFX_SC_GL_BASE_ARGS
-    -compiler=glslang -e main --target-env opengl -Os -S comp -DFFX_GLSL=1)
+    -compiler=glslang -e main --target-env opengl --amb --stb comp 8 --ssb comp 8 --sib comp 0 --suavb comp 0 -Os -S comp -DFFX_GLSL=1)
 
 file(GLOB SHADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/../shaders/*.h"
@@ -47,7 +48,6 @@ file(GLOB_RECURSE GL
 
 if (FSR2_BUILD_AS_DLL)
     add_library(ffx_fsr2_api_gl_${FSR2_PLATFORM_NAME} SHARED ${GL})
-    #target_link_libraries(ffx_fsr2_api_gl_${FSR2_PLATFORM_NAME} LINK_PUBLIC Vulkan::Vulkan)
 else()
     add_library(ffx_fsr2_api_gl_${FSR2_PLATFORM_NAME} STATIC ${GL})
 endif()
@@ -55,7 +55,6 @@ endif()
 find_package(OpenGL REQUIRED)
 
 target_include_directories(ffx_fsr2_api_gl_${FSR2_PLATFORM_NAME} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/../shaders/gl)
-#target_include_directories(ffx_fsr2_api_gl_${FSR2_PLATFORM_NAME} PUBLIC ${Vulkan_INCLUDE_DIR})
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../shaders/gl)
 
