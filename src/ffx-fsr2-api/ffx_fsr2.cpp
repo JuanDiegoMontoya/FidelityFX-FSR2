@@ -202,7 +202,7 @@ static float halton(int32_t index, int32_t base)
 
 static void fsr2DebugCheckDispatch(FfxFsr2Context_Private* context, const FfxFsr2DispatchDescription* params)
 {
-    if (params->commandList == nullptr)
+    if ((params->commandList == nullptr) && !(context->contextDescription.flags & FFX_FSR2_ALLOW_NULL_DEVICE_AND_COMMAND_LIST))
     {
         context->contextDescription.fpMessage(FFX_FSR2_MESSAGE_TYPE_ERROR, L"commandList is null");
     }
@@ -1118,9 +1118,12 @@ FfxErrorCode ffxFsr2ContextDispatch(FfxFsr2Context* context, const FfxFsr2Dispat
     FFX_RETURN_ON_ERROR(
         dispatchParams->renderSize.height <= contextPrivate->contextDescription.maxRenderSize.height,
         FFX_ERROR_OUT_OF_RANGE);
+    if (!(contextPrivate->contextDescription.flags & FFX_FSR2_ALLOW_NULL_DEVICE_AND_COMMAND_LIST))
+    {
     FFX_RETURN_ON_ERROR(
         contextPrivate->device,
         FFX_ERROR_NULL_DEVICE);
+    }
 
     // dispatch the FSR2 passes.
     const FfxErrorCode errorCode = fsr2Dispatch(contextPrivate, dispatchParams);
@@ -1229,9 +1232,12 @@ FfxErrorCode ffxFsr2ContextGenerateReactiveMask(FfxFsr2Context* context, const F
 
     FfxFsr2Context_Private* contextPrivate = (FfxFsr2Context_Private*)(context);
 
+    if (!(contextPrivate->contextDescription.flags & FFX_FSR2_ALLOW_NULL_DEVICE_AND_COMMAND_LIST))
+    {
     FFX_RETURN_ON_ERROR(
         contextPrivate->device,
         FFX_ERROR_NULL_DEVICE);
+    }
 
     if (contextPrivate->refreshPipelineStates) {
 
