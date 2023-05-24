@@ -612,7 +612,7 @@ FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDevi
         subgroupSupported = true;
       }
     }
-    if (strcmp(extensionString, "NV_gpu_shader5") == 0 || strcmp(extensionString, "AMD_gpu_shader_half_float") == 0)
+    if (strcmp(extensionString, "GL_NV_gpu_shader5") == 0 || strcmp(extensionString, "GL_AMD_gpu_shader_half_float") == 0)
     {
       deviceCapabilities->fp16Supported = true;
     }
@@ -638,13 +638,13 @@ FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevic
   // set up some internal resources we need (space for resource views and constant buffers)
   BackendContext_GL* backendContext = (BackendContext_GL*)backendInterface->scratchBuffer;
 
-  FFX_VALIDATE(GetDeviceCapabilitiesGL(backendInterface, &backendContext->capabilities, nullptr));
-
   backendContext->nextStaticResource = 0;
   backendContext->nextDynamicResource = FSR2_MAX_RESOURCE_COUNT - 1;
 
   // load OpenGL functions
   loadGLFunctions(backendContext, backendContext->glFunctionTable.glGetProcAddress);
+
+  FFX_VALIDATE(GetDeviceCapabilitiesGL(backendInterface, &backendContext->capabilities, nullptr));
 
   // create samplers
   backendContext->glFunctionTable.glCreateSamplers(1, &backendContext->pointSampler.id);
