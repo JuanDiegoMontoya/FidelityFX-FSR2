@@ -29,6 +29,10 @@
 #include <cstdlib>
 #include <codecvt>
 
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h> // GetModuleHandleA
+
 // prototypes for functions in the interface
 FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDeviceCapabilities* deviceCapabilities, FfxDevice);
 FfxErrorCode CreateBackendContextGL(FfxFsr2Interface* backendInterface, FfxDevice);
@@ -54,6 +58,7 @@ namespace
   constexpr uint32_t FSR2_MAX_BUFFERED_DESCRIPTORS   = FFX_FSR2_PASS_COUNT * FSR2_MAX_QUEUED_FRAMES;
   constexpr uint32_t FSR2_UBO_RING_BUFFER_SIZE       = FSR2_MAX_BUFFERED_DESCRIPTORS * FSR2_MAX_UNIFORM_BUFFERS;
   constexpr uint32_t FSR2_UBO_SIZE                   = 256;
+  constexpr uint32_t FSR2_DEFAULT_SUBGROUP_SIZE      = 32;
 
   namespace GL
   {
@@ -592,18 +597,23 @@ FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDevi
   deviceCapabilities->fp16Supported = false;
   deviceCapabilities->raytracingSupported = false;
 
-  // check if extensions are enabled
+  // check if extensions are supported
 
-// @todo CHECK EXTENSIONS
+  // Workaround: latest AMD driver does not report GL_KHR_shader_subgroup, despite the extension being supported
+  bool vendorIsAmd = false;
+  const auto* vendor = reinterpret_cast<const char*>(backendContext->glFunctionTable.glGetString(GL_VENDOR));
+  if (strstr(vendor, "ATI"))
+  {
+    vendorIsAmd = true;
+  }
 
   bool subgroupSupported = false;
-
   GLint numExtensions{};
   glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
   for (GLint i = 0; i < numExtensions; i++)
   {
     const auto* extensionString = reinterpret_cast<const char*>(backendContext->glFunctionTable.glGetStringi(GL_EXTENSIONS, i));
-    if (strcmp(extensionString, "GL_KHR_shader_subgroup") == 0)
+    if (vendorIsAmd || (strcmp(extensionString, "GL_KHR_shader_subgroup") == 0))
     {
       GLint supportedStages{};
       backendContext->glFunctionTable.glGetIntegerv(GL_SUBGROUP_SUPPORTED_STAGES_KHR, &supportedStages);
@@ -612,10 +622,19 @@ FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDevi
         subgroupSupported = true;
       }
     }
+
     if (strcmp(extensionString, "GL_NV_gpu_shader5") == 0 || strcmp(extensionString, "GL_AMD_gpu_shader_half_float") == 0)
     {
       deviceCapabilities->fp16Supported = true;
     }
+  }
+
+  // Workaround: RenderDoc prevents many extensions from being reported
+  // In this case, shaders that use GL_KHR_shader_subgroup will still work, but API calls using constants from it will not
+  bool renderDocIsAttached = GetModuleHandleA("renderdoc.dll");
+  if (renderDocIsAttached)
+  {
+    subgroupSupported = true;
   }
 
   if (!subgroupSupported)
@@ -623,8 +642,11 @@ FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDevi
     return FFX_ERROR_BACKEND_API_ERROR; // GL_KHR_shader_subgroup is required
   }
 
-  GLint subgroupSize{};
-  backendContext->glFunctionTable.glGetIntegerv(GL_SUBGROUP_SIZE_KHR, &subgroupSize);
+  GLint subgroupSize = FSR2_DEFAULT_SUBGROUP_SIZE;
+  if (!renderDocIsAttached)
+  {
+    backendContext->glFunctionTable.glGetIntegerv(GL_SUBGROUP_SIZE_KHR, &subgroupSize);
+  }
   deviceCapabilities->waveLaneCountMin = static_cast<uint32_t>(subgroupSize);
   deviceCapabilities->waveLaneCountMax = static_cast<uint32_t>(subgroupSize);
   
