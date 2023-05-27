@@ -25,7 +25,7 @@ endif()
 
 # begin sampler and texture bindings at 8 so generated image bindings start at a low index
 set(FFX_SC_GL_BASE_ARGS
-    -compiler=glslang -e main --target-env opengl --amb --stb comp 8 --ssb comp 8 --sib comp 0 --suavb comp 0 -Os -S comp -DFFX_GLSL=1)
+    -compiler=glslang -e main --target-env opengl --target-env spirv1.3 --amb --stb comp 8 --ssb comp 8 --sib comp 0 --suavb comp 0 -Os -S comp -DFFX_GLSL=1)
 
 file(GLOB SHADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/../shaders/*.h"
@@ -77,9 +77,9 @@ foreach(PASS_SHADER ${PASS_SHADERS})
     # combine base and permutation args
     if (${PASS_SHADER_FILENAME} STREQUAL "ffx_fsr2_compute_luminance_pyramid_pass")
         # skip 16-bit permutations for the compute luminance pyramid pass
-        set(FFX_SC_ARGS ${FFX_SC_BASE_ARGS} ${FFX_SC_GL_BASE_ARGS} ${FFX_SC_PERMUTATION_ARGS} -DSPD_NO_WAVE_OPERATIONS -DFFX_HALF=0)
+        set(FFX_SC_ARGS ${FFX_SC_BASE_ARGS} ${FFX_SC_GL_BASE_ARGS} ${FFX_SC_PERMUTATION_ARGS} -DFFX_HALF=0)
     else()
-        set(FFX_SC_ARGS ${FFX_SC_BASE_ARGS} ${FFX_SC_GL_BASE_ARGS} ${FFX_SC_PERMUTATION_ARGS} -DSPD_NO_WAVE_OPERATIONS -DFFX_HALF={0,1})
+        set(FFX_SC_ARGS ${FFX_SC_BASE_ARGS} ${FFX_SC_GL_BASE_ARGS} ${FFX_SC_PERMUTATION_ARGS} -DFFX_HALF={0,1})
     endif()
 
     if(USE_DEPFILE)
