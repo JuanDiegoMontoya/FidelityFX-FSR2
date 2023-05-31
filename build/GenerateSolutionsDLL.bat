@@ -56,3 +56,8 @@ mkdir VK
 cd VK
 cmake -A x64 ..\.. -DGFX_API=VK -DFSR2_BUILD_AS_DLL=1
 cd ..
+
+mkdir GL
+cd GL
+cmake -A x64 ..\.. -DGFX_API=GL -DFSR2_BUILD_AS_DLL=1
+cd ..

@@ -56,3 +56,8 @@ mkdir VK
 cd VK
 cmake -A x64 ..\.. -DGFX_API=VK
 cd ..
+
+mkdir GL
+cd GL
+cmake -A x64 ..\.. -DGFX_API=GL
+cd ..

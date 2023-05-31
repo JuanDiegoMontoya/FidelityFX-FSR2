@@ -609,7 +609,7 @@ FfxErrorCode GetDeviceCapabilitiesGL(FfxFsr2Interface* backendInterface, FfxDevi
 
   bool subgroupSupported = false;
   GLint numExtensions{};
-  glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+  backendContext->glFunctionTable.glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
   for (GLint i = 0; i < numExtensions; i++)
   {
     const auto* extensionString = reinterpret_cast<const char*>(backendContext->glFunctionTable.glGetStringi(GL_EXTENSIONS, i));
