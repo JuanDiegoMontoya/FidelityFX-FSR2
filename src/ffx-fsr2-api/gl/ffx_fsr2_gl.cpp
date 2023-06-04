@@ -455,6 +455,7 @@ FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context,
   switch (imgFormat)
   {
   case GL_DEPTH_COMPONENT16:
+  case GL_DEPTH_COMPONENT24:
   case GL_DEPTH_COMPONENT32F:
   case GL_DEPTH24_STENCIL8:
   case GL_DEPTH32F_STENCIL8:
