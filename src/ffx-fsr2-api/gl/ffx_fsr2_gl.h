@@ -41,10 +41,10 @@ extern "C" {
 
     /// Populate an interface with pointers for the GL backend.
     ///
-    /// @param [out] outInterface              A pointer to a <c><i>FfxFsr2Interface</i></c> structure to populate with pointers.
+    /// @param [out] outInterface               A pointer to a <c><i>FfxFsr2Interface</i></c> structure to populate with pointers.
     /// @param [in] scratchBuffer               A pointer to a buffer of memory which can be used by the DirectX(R)12 backend.
     /// @param [in] scratchBufferSize           The size (in bytes) of the buffer pointed to by <c><i>scratchBuffer</i></c>.
-    /// @param [in] getProcAddress           A function pointer to vkGetDeviceProcAddr which is used to obtain all the other Vulkan functions.
+    /// @param [in] getProcAddress              A pointer to a function which can be used to load OpenGL functions.
     /// 
     /// @retval
     /// FFX_OK                                  The operation completed successfully.
@@ -60,44 +60,37 @@ extern "C" {
 
     /// Create a <c><i>FfxResource</i></c> from a <c><i>VkImage</i></c>.
     ///
-    /// @param [in] context                     A pointer to a <c><i>FfxFsr2Context</i></c> structure.
-    /// @param [in] imgVk                       A Vulkan image resource.
-    /// @param [in] imageView                   An image view of the given image resource.
-    /// @param [in] width                       The width of the image resource.
-    /// @param [in] height                      The height of the image resource.
-    /// @param [in] imgFormat                   The format of the image resource.
+    /// @param [in] textureGL                   An OpenGL texture object.
+    /// @param [in] width                       The width of the texture object.
+    /// @param [in] height                      The height of the texture object.
+    /// @param [in] imgFormat                   The format of the texture object.
     /// @param [in] name                        (optional) A name string to identify the resource in debug mode.
-    /// @param [in] state                       The state the resource is currently in.
     /// 
     /// @returns
     /// An abstract FidelityFX resources.
     /// 
     /// @ingroup FSR2 GL
-    FFX_API FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context, 
-        GLuint imageGL, 
-        uint32_t width, 
-        uint32_t height, 
-        GLenum imgFormat, 
-        const wchar_t* name = nullptr, 
-        FfxResourceStates state = FFX_RESOURCE_STATE_COMPUTE_READ);
+    FFX_API FfxResource ffxGetTextureResourceGL(
+      GLuint textureGL, 
+      uint32_t width, 
+      uint32_t height, 
+      GLenum imgFormat, 
+      const wchar_t* name = nullptr);
 
     /// Create a <c><i>FfxResource</i></c> from a <c><i>VkBuffer</i></c>.
     ///
-    /// @param [in] context                     A pointer to a <c><i>FfxFsr2Context</i></c> structure.
-    /// @param [in] bufVk                       A Vulkan buffer resource.
-    /// @param [in] size                        The size of the buffer resource.
+    /// @param [in] bufferGL                    An OpenGL buffer object.
+    /// @param [in] size                        The size of the buffer object.
     /// @param [in] name                        (optional) A name string to identify the resource in debug mode.
-    /// @param [in] state                       The state the resource is currently in.
     /// 
     /// @returns
     /// An abstract FidelityFX resources.
     /// 
     /// @ingroup FSR2 GL
-    FFX_API FfxResource ffxGetBufferResourceGL(FfxFsr2Context* context, 
-        GLuint bufferGL, 
-        uint32_t size, 
-        const wchar_t* name = nullptr, 
-        FfxResourceStates state = FFX_RESOURCE_STATE_COMPUTE_READ);
+    FFX_API FfxResource ffxGetBufferResourceGL(
+      GLuint bufferGL, 
+      uint32_t size, 
+      const wchar_t* name = nullptr);
 
     /// Convert a <c><i>FfxResource</i></c> value to a <c><i>VkImage</i></c>.
     ///
@@ -105,7 +98,7 @@ extern "C" {
     /// @param [in] resId                       A resourceID.
     /// 
     /// @returns
-    /// A <c><i>VkImage</i></c>.
+    /// A <c><i>GLuint</i></c>.
     /// 
     /// @ingroup FSR2 GL
     FFX_API GLuint ffxGetGLImage(FfxFsr2Context* context, uint32_t resId);

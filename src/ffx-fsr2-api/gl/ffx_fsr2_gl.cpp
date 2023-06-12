@@ -261,44 +261,45 @@ static void loadGLFunctions(BackendContext_GL* backendContext, ffx_glGetProcAddr
 
 static GLenum getGLFormatFromSurfaceFormat(FfxSurfaceFormat fmt)
 {
-  switch (fmt) {
-  case(FFX_SURFACE_FORMAT_R32G32B32A32_TYPELESS):
+  switch (fmt)
+  {
+  case FFX_SURFACE_FORMAT_R32G32B32A32_TYPELESS:
     return GL_RGBA32F;
-  case(FFX_SURFACE_FORMAT_R32G32B32A32_FLOAT):
+  case FFX_SURFACE_FORMAT_R32G32B32A32_FLOAT:
     return GL_RGBA32F;
-  case(FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT):
+  case FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT:
     return GL_RGBA16F;
-  case(FFX_SURFACE_FORMAT_R16G16B16A16_UNORM):
+  case FFX_SURFACE_FORMAT_R16G16B16A16_UNORM:
     return GL_RGBA16;
-  case(FFX_SURFACE_FORMAT_R32G32_FLOAT):
+  case FFX_SURFACE_FORMAT_R32G32_FLOAT:
     return GL_RG32F;
-  case(FFX_SURFACE_FORMAT_R32_UINT):
+  case FFX_SURFACE_FORMAT_R32_UINT:
     return GL_R32UI;
-  case(FFX_SURFACE_FORMAT_R8G8B8A8_TYPELESS):
+  case FFX_SURFACE_FORMAT_R8G8B8A8_TYPELESS:
     return GL_RGBA8;
-  case(FFX_SURFACE_FORMAT_R8G8B8A8_UNORM):
+  case FFX_SURFACE_FORMAT_R8G8B8A8_UNORM:
     return GL_RGBA8;
-  case(FFX_SURFACE_FORMAT_R11G11B10_FLOAT):
+  case FFX_SURFACE_FORMAT_R11G11B10_FLOAT:
     return GL_R11F_G11F_B10F;
-  case(FFX_SURFACE_FORMAT_R16G16_FLOAT):
+  case FFX_SURFACE_FORMAT_R16G16_FLOAT:
     return GL_RG16F;
-  case(FFX_SURFACE_FORMAT_R16G16_UINT):
+  case FFX_SURFACE_FORMAT_R16G16_UINT:
     return GL_RG16UI;
-  case(FFX_SURFACE_FORMAT_R16_FLOAT):
+  case FFX_SURFACE_FORMAT_R16_FLOAT:
     return GL_R16F;
-  case(FFX_SURFACE_FORMAT_R16_UINT):
+  case FFX_SURFACE_FORMAT_R16_UINT:
     return GL_R16UI;
-  case(FFX_SURFACE_FORMAT_R16_UNORM):
+  case FFX_SURFACE_FORMAT_R16_UNORM:
     return GL_R16;
-  case(FFX_SURFACE_FORMAT_R16_SNORM):
+  case FFX_SURFACE_FORMAT_R16_SNORM:
     return GL_R16_SNORM;
-  case(FFX_SURFACE_FORMAT_R8_UNORM):
+  case FFX_SURFACE_FORMAT_R8_UNORM:
     return GL_R8;
-  case(FFX_SURFACE_FORMAT_R8G8_UNORM):
+  case FFX_SURFACE_FORMAT_R8G8_UNORM:
     return GL_RG8;
-  case(FFX_SURFACE_FORMAT_R32_FLOAT):
+  case FFX_SURFACE_FORMAT_R32_FLOAT:
     return GL_R32F;
-  case(FFX_SURFACE_FORMAT_R8_UINT):
+  case FFX_SURFACE_FORMAT_R8_UINT:
     return GL_R8UI;
   default:
     FFX_ASSERT_FAIL("");
@@ -372,38 +373,39 @@ static GLenum getGLUploadTypeFromSurfaceFormat(FfxSurfaceFormat fmt)
 
 FfxSurfaceFormat ffxGetSurfaceFormatGL(GLenum fmt)
 {
-  switch (fmt) {
-  case(GL_RGBA32F):
+  switch (fmt)
+  {
+  case GL_RGBA32F:
     return FFX_SURFACE_FORMAT_R32G32B32A32_FLOAT;
-  case(GL_RGBA16F):
+  case GL_RGBA16F:
     return FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT;
-  case(GL_RGBA16):
+  case GL_RGBA16:
     return FFX_SURFACE_FORMAT_R16G16B16A16_UNORM;
-  case(GL_RG32F):
+  case GL_RG32F:
     return FFX_SURFACE_FORMAT_R32G32_FLOAT;
-  case(GL_R32UI):
+  case GL_R32UI:
     return FFX_SURFACE_FORMAT_R32_UINT;
-  case(GL_RGBA8):
+  case GL_RGBA8:
     return FFX_SURFACE_FORMAT_R8G8B8A8_UNORM;
-  case(GL_R11F_G11F_B10F):
+  case GL_R11F_G11F_B10F:
     return FFX_SURFACE_FORMAT_R11G11B10_FLOAT;
-  case(GL_RG16F):
+  case GL_RG16F:
     return FFX_SURFACE_FORMAT_R16G16_FLOAT;
-  case(GL_RG16UI):
+  case GL_RG16UI:
     return FFX_SURFACE_FORMAT_R16G16_UINT;
-  case(GL_R16F):
+  case GL_R16F:
     return FFX_SURFACE_FORMAT_R16_FLOAT;
-  case(GL_R16UI):
+  case GL_R16UI:
     return FFX_SURFACE_FORMAT_R16_UINT;
-  case(GL_R16):
+  case GL_R16:
     return FFX_SURFACE_FORMAT_R16_UNORM;
-  case(GL_R16_SNORM):
+  case GL_R16_SNORM:
     return FFX_SURFACE_FORMAT_R16_SNORM;
-  case(GL_R8):
+  case GL_R8:
     return FFX_SURFACE_FORMAT_R8_UNORM;
-  case(GL_R32F):
+  case GL_R32F:
     return FFX_SURFACE_FORMAT_R32_FLOAT;
-  case(GL_R8UI):
+  case GL_R8UI:
     return FFX_SURFACE_FORMAT_R8_UINT;
   default:
     return FFX_SURFACE_FORMAT_UNKNOWN;
@@ -432,17 +434,10 @@ static BackendContext_GL::UniformBuffer accquireDynamicUBO(BackendContext_GL* ba
   return ubo;
 }
 
-FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context,
-  GLuint imageGL,
-  uint32_t width,
-  uint32_t height,
-  GLenum imgFormat,
-  const wchar_t* name,
-  FfxResourceStates state)
+FfxResource ffxGetTextureResourceGL(GLuint textureGL, uint32_t width, uint32_t height, GLenum imgFormat, const wchar_t* name)
 {
   FfxResource resource = {};
-  resource.resource = reinterpret_cast<void*>(static_cast<uintptr_t>(imageGL));
-  resource.state = state;
+  resource.resource = reinterpret_cast<void*>(static_cast<uintptr_t>(textureGL));
   resource.descriptorData = 0;
   resource.description.flags = FFX_RESOURCE_FLAGS_NONE;
   resource.description.type = FFX_RESOURCE_TYPE_TEXTURE2D;
@@ -471,7 +466,8 @@ FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context,
   }
 
 #ifdef _DEBUG
-  if (name) {
+  if (name)
+  {
     wcscpy_s(resource.name, name);
   }
 #endif
@@ -479,11 +475,10 @@ FfxResource ffxGetTextureResourceGL(FfxFsr2Context* context,
   return resource;
 }
 
-FfxResource ffxGetBufferResourceGL(FfxFsr2Context* context, GLuint bufferGL, uint32_t size, const wchar_t* name, FfxResourceStates state)
+FfxResource ffxGetBufferResourceGL(GLuint bufferGL, uint32_t size, const wchar_t* name)
 {
   FfxResource resource = {};
   resource.resource = reinterpret_cast<void*>(static_cast<uintptr_t>(bufferGL));
-  resource.state = state;
   resource.descriptorData = 0;
   resource.description.flags = FFX_RESOURCE_FLAGS_NONE;
   resource.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -495,7 +490,8 @@ FfxResource ffxGetBufferResourceGL(FfxFsr2Context* context, GLuint bufferGL, uin
   resource.isDepth = false;
 
 #ifdef _DEBUG
-  if (name) {
+  if (name)
+  {
     wcscpy_s(resource.name, name);
   }
 #endif
@@ -1041,8 +1037,8 @@ FfxErrorCode ScheduleGpuJobGL(FfxFsr2Interface* backendInterface, const FfxGpuJo
 
   backendContext->gpuJobs[backendContext->gpuJobCount] = *job;
 
-  if (job->jobType == FFX_GPU_JOB_COMPUTE) {
-
+  if (job->jobType == FFX_GPU_JOB_COMPUTE)
+  {
     // needs to copy SRVs and UAVs in case they are on the stack only
     FfxComputeJobDescription* computeJob = &backendContext->gpuJobs[backendContext->gpuJobCount].computeJobDescriptor;
     const uint32_t numConstBuffers = job->computeJobDescriptor.pipeline.constCount;
@@ -1267,7 +1263,8 @@ FfxErrorCode DestroyPipelineGL(FfxFsr2Interface* backendInterface, FfxPipelineSt
 
   // destroy pipeline 
   const auto program = static_cast<GLuint>(reinterpret_cast<uintptr_t>(pipeline->pipeline));
-  if (program) {
+  if (program)
+  {
     backendContext->glFunctionTable.glDeleteProgram(program);
     pipeline->pipeline = nullptr;
   }
