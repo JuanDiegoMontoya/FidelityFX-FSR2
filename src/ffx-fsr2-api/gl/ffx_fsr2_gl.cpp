@@ -79,7 +79,6 @@ struct BackendContext_GL {
     char                    resourceName[64] = {};
 #endif
     FfxResourceDescription  resourceDescription;
-    //FfxResourceStates       state;
 
     GL::Buffer buffer = {};
 
