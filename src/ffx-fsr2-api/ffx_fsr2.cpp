@@ -614,7 +614,7 @@ static void fsr2SafeReleaseResource(FfxFsr2Context_Private* context, FfxResource
 
 static void fsr2SafeReleaseDevice(FfxFsr2Context_Private* context, FfxDevice* device)
 {
-    if (*device == nullptr) {
+    if (*device == nullptr && !(context->contextDescription.flags & FFX_FSR2_ALLOW_NULL_DEVICE_AND_COMMAND_LIST)) {
         return;
     }
 
