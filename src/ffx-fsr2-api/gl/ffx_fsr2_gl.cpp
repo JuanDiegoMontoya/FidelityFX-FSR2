@@ -894,7 +894,7 @@ FfxErrorCode CreateResourceGL(
 
       // texture view name
 #ifdef _DEBUG
-      backendContext->glFunctionTable.glObjectLabel(GL_TEXTURE, res->textureAllMipsView.id, -1, res->resourceName);
+      backendContext->glFunctionTable.glObjectLabel(GL_TEXTURE, res->textureSingleMipViews[i].id, -1, res->resourceName);
 #endif
     }
 
