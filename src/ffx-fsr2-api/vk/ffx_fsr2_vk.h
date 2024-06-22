@@ -23,6 +23,7 @@
 
 #pragma once
 
+#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 #include "../ffx_fsr2_interface.h"
 
@@ -34,7 +35,7 @@ extern "C" {
     ///
     /// @returns
     /// The size (in bytes) of the required scratch memory buffer for the VK backend.
-    FFX_API size_t ffxFsr2GetScratchMemorySizeVK(VkPhysicalDevice physicalDevice);
+    FFX_API size_t ffxFsr2GetScratchMemorySizeVK(VkPhysicalDevice physicalDevice, PFN_vkEnumerateDeviceExtensionProperties);
 
     /// Populate an interface with pointers for the VK backend.
     ///
@@ -56,9 +57,14 @@ extern "C" {
         void* scratchBuffer,
         size_t scratchBufferSize,
         VkPhysicalDevice physicalDevice,
-        PFN_vkGetDeviceProcAddr getDeviceProcAddr);
+        PFN_vkGetDeviceProcAddr getDeviceProcAddr,
+        PFN_vkGetPhysicalDeviceMemoryProperties,
+        PFN_vkGetPhysicalDeviceProperties2,
+        PFN_vkGetPhysicalDeviceFeatures2,
+        PFN_vkEnumerateDeviceExtensionProperties,
+        PFN_vkGetPhysicalDeviceProperties);
 
-    /// Create a <c><i>FfxFsr2Device</i></c> from a <c><i>VkDevice</i></c>.
+    /// Create a <c><i>FfxFsr2De  ce</i></c> from a <c><i>VkDevice</i></c>.
     ///
     /// @param [in] device                      A pointer to the Vulkan logical device.
     /// 
